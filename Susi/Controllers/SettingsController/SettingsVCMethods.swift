@@ -22,7 +22,7 @@ extension SettingsViewController {
         navigationItem.leftViews = [backButton]
     }
 
-    func dismissView() {
+    @objc func dismissView() {
         self.dismiss(animated: true, completion: nil)
     }
 
@@ -32,6 +32,16 @@ extension SettingsViewController {
             navbar.barTintColor = UIColor.defaultColor()
         }
         UIApplication.shared.statusBarView?.backgroundColor = UIColor.defaultColor()
+    }
+
+    func setLanguageLabel() {
+        let languageName = UserDefaults.standard.object(forKey: ControllerConstants.UserDefaultsKeys.languageName) as? String
+        let languageCode = UserDefaults.standard.object(forKey: ControllerConstants.UserDefaultsKeys.languageCode) as? String
+        if languageName != nil && languageCode != nil {
+            susiVoiceLanguageLabel.text = "\(languageName!) (\(languageCode!))"
+        } else {
+            susiVoiceLanguageLabel.text = "English (en-US)"
+        }
     }
 
     func logoutUser() {
@@ -44,8 +54,10 @@ extension SettingsViewController {
         Client.sharedInstance.logoutUser { (success, error) in
             DispatchQueue.main.async {
                 if success {
-                    self.presentingViewController?.presentingViewController?
-                        .presentingViewController?.dismiss(animated: true, completion: nil)
+                    if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+                        appDelegate.currentUser = nil
+                        self.presentLoginScreen()
+                    }
                 } else {
                     debugPrint(error)
                 }
@@ -74,14 +86,15 @@ extension SettingsViewController {
                 key = ControllerConstants.UserDefaultsKeys.speechPitch
             }
 
+            params[ControllerConstants.key] = key as AnyObject
+
             if let slider = sender as? UISlider {
                 UserDefaults.standard.set(slider.value, forKey: key)
+                params[ControllerConstants.value] = UserDefaults.standard.value(forKey: key) as AnyObject
             } else {
                 UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: key), forKey: key)
+                params[ControllerConstants.value] = UserDefaults.standard.bool(forKey: key) as AnyObject
             }
-
-            params[ControllerConstants.key] = key as AnyObject
-            params[ControllerConstants.value] = UserDefaults.standard.bool(forKey: key) as AnyObject
 
             if let delegate = UIApplication.shared.delegate as? AppDelegate, let user = delegate.currentUser {
                 params[Client.UserKeys.AccessToken] = user.accessToken as AnyObject
@@ -109,21 +122,57 @@ extension SettingsViewController {
         let nvc = AppNavigationController(rootViewController: vc)
         present(nvc, animated: true, completion: nil)
     }
+
+    func presentDeviceActivity() {
+        if let delegate = UIApplication.shared.delegate as? AppDelegate, delegate.currentUser != nil {
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let devicesActivityController = storyboard.instantiateViewController(withIdentifier: "DevicesActivityController")
+            let nvc = AppNavigationController(rootViewController: devicesActivityController)
+            present(nvc, animated: true, completion: nil)
+        } else {
+            presentLoginAlert()
+        }
+    }
+
+    func presentLoginAlert() {
+        let loginAlertController = UIAlertController(title: "You are not logged-in", message: "Please login to connect device", preferredStyle: .alert)
+        let loginAction = UIAlertAction(title: "Login", style: .default, handler: { _ in
+            self.presentLoginScreen()
+        })
+        let cancleAction = UIAlertAction(title: "Cancle", style: .cancel, handler: nil)
+        loginAlertController.addAction(cancleAction)
+        loginAlertController.addAction(loginAction)
+        self.present(loginAlertController, animated: true, completion: nil)
+    }
+
+    func presentDeviceInstruction() {
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        let deviceInstructionsViewController = storyboard.instantiateViewController(withIdentifier: "DeviceInstructionsViewController")
+        let nvc = AppNavigationController(rootViewController: deviceInstructionsViewController)
+        present(nvc, animated: true, completion: nil)
+    }
+
+    func presentLoginScreen() {
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        let loginVC = storyboard.instantiateViewController(withIdentifier: "LoginController")
+        present(loginVC, animated: true, completion: nil)
+    }
+
     func doChangeLanguage() {
-        let languages = Localize.availableLanguages().flatMap { Localize.displayNameForLanguage($0).isEmpty ? nil : $0 }
-        let actionSheet = UIAlertController(title: nil, message: "Set a language".localized(), preferredStyle: UIAlertControllerStyle.actionSheet)
+        let languages = Localize.availableLanguages().compactMap { Localize.displayNameForLanguage($0).isEmpty ? nil : $0 }
+        let actionSheet = UIAlertController(title: nil, message: "Set a language".localized(), preferredStyle: UIAlertController.Style.actionSheet)
         for language in languages {
             let displayName = Localize.displayNameForLanguage(language)
             let languageAction = UIAlertAction(title: displayName.capitalized, style: .default, handler: {
-                (alert: UIAlertAction!) -> Void in
+                (_: UIAlertAction!) -> Void in
                 Localize.setCurrentLanguage(language)
             })
             actionSheet.addAction(languageAction)
         }
         let cancelAction = UIAlertAction(title: ControllerConstants.dialogCancelAction.localized(),
-                                         style: UIAlertActionStyle.cancel,
+                                         style: UIAlertAction.Style.cancel,
                                          handler: {
-            (alert: UIAlertAction) -> Void in
+                                            (_: UIAlertAction) -> Void in
         })
         actionSheet.addAction(cancelAction)
         present(actionSheet, animated: true, completion: nil)
@@ -175,8 +224,21 @@ extension SettingsViewController {
         if let link = NSURL(string: "http://susi.ai") {
             let objectsToShare = [message, link] as [Any]
             let activityVC = UIActivityViewController(activityItems: objectsToShare, applicationActivities: nil)
-            activityVC.excludedActivityTypes = [UIActivityType.airDrop, UIActivityType.addToReadingList]
+            activityVC.excludedActivityTypes = [UIActivity.ActivityType.airDrop, UIActivity.ActivityType.addToReadingList]
             self.present(activityVC, animated: true, completion: nil)
         }
     }
+    
+    func roundedCorner() {
+        userImage.layer.cornerRadius = 25.0
+        userImage.layer.borderWidth = 1.0
+        userImage.layer.borderColor = UIColor.iOSGray().cgColor
+        userImage.layer.masksToBounds = true
+        userImage.clipsToBounds = true
+    }
+    
+    static func getAvatarPath(_ accessToken: String) -> String {
+        return "\(Client.APIURLs.SusiAPI)\(Client.Methods.GetUserAvatar)?access_token=\(accessToken)"
+    }
+    
 }

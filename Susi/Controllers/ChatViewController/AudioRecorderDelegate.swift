@@ -14,9 +14,8 @@ extension ChatViewController: AVAudioRecorderDelegate {
         Used to initialise the snowboy wrapper
     **/
     func initSnowboy() {
-        wrapper = SnowboyWrapper(resources: RESOURCE, modelStr: MODEL)
-        wrapper.setSensitivity("0.5")
-        wrapper.setAudioGain(1.0)
+        wrapper?.setSensitivity("0.5")
+        wrapper?.setAudioGain(1.0)
         //  print("Sample rate: \(wrapper?.sampleRate()); channels: \(wrapper?.numChannels()); bits: \(wrapper?.bitsPerSample())")
     }
 
@@ -41,18 +40,18 @@ extension ChatViewController: AVAudioRecorderDelegate {
 
         let audioFrameCount = AVAudioFrameCount(file.length)
         if audioFrameCount > 0 {
-            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: audioFrameCount)
+            let buffer = AVAudioPCMBuffer(pcmFormat: format!, frameCapacity: audioFrameCount)
             do {
-                try file.read(into: buffer)
+                try file.read(into: buffer!)
             } catch let error {
                 print(error.localizedDescription)
             }
-            let array = Array(UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength)))
+            let array = Array(UnsafeBufferPointer(start: buffer?.floatChannelData![0], count: Int(UInt32(buffer!.frameLength))))
 
             // print("Frame capacity: \(AVAudioFrameCount(file.length))")
             // print("Buffer frame length: \(buffer.frameLength)")
 
-            let result = wrapper.runDetection(array, length: Int32(buffer.frameLength))
+            let result = wrapper?.runDetection(array, length: Int32(buffer!.frameLength))
             // print("Result: \(result)")
 
             if result == 1 {
@@ -74,7 +73,7 @@ extension ChatViewController: AVAudioRecorderDelegate {
         Configures settings for the recorder
         and records for 1.5 seconds
     **/
-    func startRecording() {
+    @objc func startRecording() {
         do {
             let fileMgr = FileManager.default
             let dirPaths = fileMgr.urls(for: .documentDirectory,
@@ -84,11 +83,11 @@ extension ChatViewController: AVAudioRecorderDelegate {
                 [AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
                  AVEncoderBitRateKey: 128000,
                  AVNumberOfChannelsKey: 1,
-                 AVSampleRateKey: 16000.0] as [String : Any]
+                 AVSampleRateKey: 16000.0] as [String: Any]
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(AVAudioSessionCategoryRecord)
+            try audioSession.setCategory(AVAudioSession.Category.record, mode: AVAudioSession.Mode.spokenAudio)
             try audioRecorder = AVAudioRecorder(url: soundFileURL,
-                                                settings: recordSettings as [String : AnyObject])
+                                                settings: recordSettings as [String: AnyObject])
             audioRecorder.delegate = self
             audioRecorder.prepareToRecord()
             audioRecorder.record(forDuration: 1.5)

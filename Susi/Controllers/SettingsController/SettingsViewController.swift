@@ -53,6 +53,13 @@ class SettingsViewController: UITableViewController {
     @IBOutlet weak var shareSusiSubtitle: UILabel!
     @IBOutlet weak var resetPassTitle: UILabel!
     @IBOutlet weak var logoutTitle: UILabel!
+    @IBOutlet weak var devicesTitle: UILabel!
+    @IBOutlet weak var devicesSubtitle: UILabel!
+    @IBOutlet weak var setupDeviceTitle: UILabel!
+    @IBOutlet weak var susiVoiceLanguageLabel: UILabel!
+    @IBOutlet weak var aboutUsTitle: UILabel!
+    @IBOutlet weak var userImage: UIImageView!
+    @IBOutlet weak var userEmailTitle: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -68,6 +75,7 @@ class SettingsViewController: UITableViewController {
         super.viewWillAppear(animated)
         setupTitle()
         setupTheme()
+        setLanguageLabel()
     }
 
     override func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
@@ -82,7 +90,11 @@ class SettingsViewController: UITableViewController {
             case 3:
                 header.textLabel?.text = ControllerConstants.Settings.susiVoiceModel.localized()
             case 4:
+                header.textLabel?.text = ControllerConstants.Settings.devices.localized()
+            case 5:
                 header.textLabel?.text = ControllerConstants.Settings.miscellaneous.localized()
+            case 6:
+                header.textLabel?.text = ControllerConstants.Settings.account.localized()
             default:
                 break
             }
@@ -94,6 +106,8 @@ class SettingsViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let section = indexPath.section
         let row = indexPath.row
+        let delegate = UIApplication.shared.delegate as? AppDelegate
+        let user = delegate?.currentUser
 
         if section == 2 {
             if row == 2 {
@@ -106,21 +120,67 @@ class SettingsViewController: UITableViewController {
                 deleteVoiceModel()
             }
         } else if section == 4 {
+            if row == 0 {
+                presentDeviceActivity()
+            } else if row == 1 {
+                presentDeviceInstruction()
+            }
+        } else if section == 5 {
             if row == 1 {
                 shareApp()
-            } else if row == 2 {
+            }
+        } else if section == 6 {
+            if row == 0 {
+            if user == nil {
+                presentLoginScreen()
+            } else {
+                // Will Connect to the Account Section.
+            }
+            } else if row == 1 {
                 presentResetPasswordController()
-            } else if row == 3 {
-                logoutUser()
+            } else if row == 2 {
+                if logoutTitle.text == ControllerConstants.Settings.logout.localized() {
+                    let logoutAlert = UIAlertController(title: ControllerConstants.Logout.title, message: ControllerConstants.Logout.message, preferredStyle: UIAlertController.Style.alert)
+                    logoutAlert.addAction(UIAlertAction(title: ControllerConstants.Logout.cancel, style: .default, handler: { (action: UIAlertAction!) in
+                        logoutAlert.dismiss(animated: true, completion: nil)
+                    }))
+                    logoutAlert.addAction(UIAlertAction(title: ControllerConstants.Logout.confirm, style: .destructive, handler: { (action: UIAlertAction!) in
+                        self.logoutUser()
+                    }))
+                    present(logoutAlert, animated: true, completion: nil)
+                } else {
+                    logoutUser()
+                }
             }
         }
         tableView.deselectRow(at: indexPath, animated: true)
     }
 
     override func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        let user = UserDefaults.standard.dictionary(forKey: ControllerConstants.UserDefaultsKeys.user)
-        if indexPath.section == 4 && indexPath.row == 2 && user == nil {
-            cell.isHidden = true
+        let delegate = UIApplication.shared.delegate as? AppDelegate
+        let user = delegate?.currentUser
+        if user == nil {
+            if indexPath.section == 6 && indexPath.row == 1 {
+                cell.isUserInteractionEnabled = false
+                cell.textLabel?.isEnabled = false
+                cell.textLabel?.text = ControllerConstants.Settings.resetPass.localized()
+                cell.textLabel?.textColor = .lightGray
+                cell.selectionStyle = .none
+            } else if indexPath.section == 6 && indexPath.row == 0 {
+                let imageURL = URL(string: ControllerConstants.Settings.gravatarURL)
+                userImage.kf.setImage(with: imageURL)
+                roundedCorner()
+                userEmailTitle.text = ControllerConstants.Settings.message
+            }
+        } else {
+            if indexPath.section == 6 && indexPath.row == 0 {
+                let imageURL = URL(string: SettingsViewController.getAvatarPath((user?.accessToken)!) )
+                userImage.kf.setImage(with: imageURL)
+                userEmailTitle.text = user?.emailID
+                roundedCorner()
+                //Since account VC not available so, cell should be inactive
+                cell.isUserInteractionEnabled = false
+            }
         }
     }
 
@@ -132,7 +192,8 @@ class SettingsViewController: UITableViewController {
             return super.tableView(tableView, heightForRowAt: indexPath)
         }
     }
-    func localizeStrings() {
+
+    @objc func localizeStrings() {
         enterToSendTitle.text = ControllerConstants.Settings.enterToSend.localized()
         enterToSendSubtitle.text = ControllerConstants.Settings.enterToSendSubtitle.localized()
         micInputTitle.text = ControllerConstants.Settings.micInput.localized()
@@ -155,6 +216,10 @@ class SettingsViewController: UITableViewController {
         shareSusiSubtitle.text = ControllerConstants.Settings.shareSusiSubtitle.localized()
         resetPassTitle.text = ControllerConstants.Settings.resetPass.localized()
         logoutTitle.text = ControllerConstants.Settings.logout.localized()
+        aboutUsTitle.text = ControllerConstants.Settings.about.localized()
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            logoutTitle.text = (appDelegate.currentUser != nil) ? ControllerConstants.Settings.logout.localized() : ControllerConstants.Settings.login.localized()
+        }
         tableView.reloadData()
     }
 }

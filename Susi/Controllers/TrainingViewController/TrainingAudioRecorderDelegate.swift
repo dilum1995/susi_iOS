@@ -23,9 +23,8 @@ extension TrainingViewController: AVAudioRecorderDelegate {
 
         // Get instance
         do {
-            try audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord)
-            try audioSession.setMode(AVAudioSessionModeDefault)
-            try audioSession.setActive(true, with: .notifyOthersOnDeactivation)
+            try audioSession.setCategory(AVAudioSession.Category.playAndRecord, mode: AVAudioSession.Mode.default)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             print("audioSession properties weren't set because of an error.")
         }
@@ -56,7 +55,7 @@ extension TrainingViewController: AVAudioRecorderDelegate {
 
     }
 
-    func downloadModel() {
+    @objc func downloadModel() {
         let params: NSMutableDictionary = [
             Client.HotwordKeys.name: Client.HotwordValues.susi,
             Client.HotwordKeys.token: Client.HotwordValues.token,
@@ -77,7 +76,7 @@ extension TrainingViewController: AVAudioRecorderDelegate {
         ]
         params.setValue(dict, forKey: Client.HotwordKeys.voiceSamples)
 
-        if let params = params as? [String : AnyObject] {
+        if let params = params as? [String: AnyObject] {
             downloadActive(state: true)
             Client.sharedInstance.trainHotwordUsingSnowboy(params) { (success, _) in
                 DispatchQueue.main.async {

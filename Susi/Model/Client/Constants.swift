@@ -13,6 +13,8 @@ extension Client {
         static let DuckDuckGo = "http://api.duckduckgo.com"
         static let YoutubeSearch = "https://www.googleapis.com/youtube/v3/search"
         static let SnowboyTrain = "https://snowboy.kitt.ai/api/v1/train/"
+        static let SpeakerBaseURL = "http://10.0.0.1:5000"
+        static let SkillURL = "https://skills.susi.ai"
     }
 
     struct Methods {
@@ -27,7 +29,20 @@ extension Client {
         static let ChangePassword = "/aaa/changepassword.json"
         static let GetGroups = "/cms/getGroups.json"
         static let GetSkillList = "/cms/getSkillList.json"
-        static let baseSkillImagePath = "https://raw.githubusercontent.com/fossasia/susi_skill_data/master/models/"
+        static let FiveStarRateSkill = "/cms/fiveStarRateSkill.json"
+        static let GetRatingByUser = "/cms/getRatingByUser.json"
+        static let FeedbackSkill = "/cms/feedbackSkill.json"
+        static let GetSkillFeedback = "/cms/getSkillFeedback.json"
+        static let baseSkillImagePath = "/cms/getImage.png"
+        static let FeedbackLog = "/cms/feedbackLog.json"
+        static let WifiCredentials = "/wifi_credentials"
+        static let Auth = "/auth"
+        static let Config = "/config"
+        static let SpeakerConfig = "/speaker_config"
+        static let CheckRegistration = "/aaa/checkRegistration.json"
+        static let ReportSkill = "/cms/reportSkill.json"
+        static let GetLanguages = "/cms/getAllLanguages.json"
+        static let GetUserAvatar = "/getAvatar.png"
     }
 
     struct ResponseMessages {
@@ -36,6 +51,13 @@ extension Client {
         static let SignedOut = "Successfully logged out"
         static let PasswordInvalid = "Password chosen is invalid."
         static let NoSkillsPresent = "No skills present."
+        static let NoRatingsPresent = "No ratings present."
+        static let NotSubmittedRatings = "Problem submitting ratings"
+        static let SuccessSubmitRating = "Rating submitted successfully"
+        static let UserRatingNotFetched = "Problem fetching user rating"
+        static let SuccessUserRating = "Fetched user rating successfully"
+        static let SuccessPostFeedback = "Skill feedback updated"
+        static let UnablePostFeedback = "Problem posting skill feedback"
     }
 
     struct UserKeys {
@@ -48,6 +70,8 @@ extension Client {
         static let ValidSeconds = "valid_seconds"
         static let EmailOfAccount = "changepassword"
         static let NewPassword = "newpassword"
+        static let EmailExists = "exists"
+        static let CheckEmail = "check_email"
     }
 
     struct ChatKeys {
@@ -75,6 +99,10 @@ extension Client {
         static let ShortenedUrl = "finalUrl"
         static let Image = "image"
         static let Cognitions = "cognitions"
+        static let CountryName = "country_name"
+        static let CountryCode = "country_code"
+        static let deviceType = "device_type"
+        static let Identifier = "identifier"
     }
 
     struct WebsearchKeys {
@@ -119,6 +147,12 @@ extension Client {
         static let skill = "skill"
         static let language = "language"
         static let rating = "rating"
+        static let feedback = "feedback"
+        static let userQuery = "user_query"
+        static let susiReply = "susi_reply"
+        static let countryName = "country_name"
+        static let countryCode = "country_code"
+        static let deviceType = "device_type"
     }
 
     struct HotwordKeys {
@@ -141,6 +175,7 @@ extension Client {
         static let group = "group"
         static let groups = "groups"
         static let skills = "skills"
+        static let skill = "skill"
         static let image = "image"
         static let authorURL = "author_url"
         static let examples = "examples"
@@ -149,6 +184,40 @@ extension Client {
         static let description = "descriptions"
         static let model = "model"
         static let language = "language"
+        static let dynamicContent = "dynamic_content"
+        static let skillRating = "skill_rating"
+        static let accessToken = "access_token"
+        static let feedback = "feedback"
+        static let staffPick = "staffPick"
+        static let lastModifiedTime = "lastModifiedTime"
+    }
+
+    struct FiveStarRating {
+        static let oneStar = "one_star"
+        static let twoStar = "two_star"
+        static let threeStar = "three_star"
+        static let fourStar = "four_star"
+        static let fiveSatr = "five_star"
+        static let totalStar = "total_star"
+        static let average = "avg_star"
+        static let positive = "positive"
+        static let negative = "negative"
+        static let stars = "stars"
+        static let ratings = "ratings"
+        static let AccessToken = "access_token"
+    }
+
+    struct SmartSpeaker {
+        static let wifiSSID = "wifissid"
+        static let wifiPassword = "wifipassd"
+        static let auth = "auth"
+        static let email = "email"
+        static let password = "password"
+        static let STT = "stt"
+        static let TTS = "tts"
+        static let hotword = "hotword"
+        static let wake = "wake"
+        static let roomName = "room_name"
     }
 
 }

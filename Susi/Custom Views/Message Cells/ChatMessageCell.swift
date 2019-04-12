@@ -21,6 +21,7 @@ class ChatMessageCell: BaseCell, UITextViewDelegate {
         textView.isScrollEnabled = false
         textView.isUserInteractionEnabled = true
         textView.addLongPressGesture()
+        textView.addTapGesture()
         return textView
     }()
 
@@ -40,20 +41,11 @@ class ChatMessageCell: BaseCell, UITextViewDelegate {
 
     override func setupViews() {
         super.setupViews()
-
-        addSubview(textBubbleView)
-        addSubview(messageTextView)
+        self.contentView.addSubview(textBubbleView)
+        self.contentView.addSubview(messageTextView)
         accessibilityIdentifier = ControllerConstants.TestKeys.chatCells
 
         backgroundColor = .clear
-    }
-
-    func textView(_ textView: UITextView, shouldInteractWith url: URL, in characterRange: NSRange) -> Bool {
-        return true
-    }
-
-    func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
-        return true
     }
 
 }

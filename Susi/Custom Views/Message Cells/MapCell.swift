@@ -46,7 +46,7 @@ class MapCell: ChatMessageCell, MKMapViewDelegate {
 
             let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
             let zoomLevel = 360 / pow(2, Double(mapData.zoom - 1)) * Double(frame.width) / 256
-            let span = MKCoordinateSpanMake(0, zoomLevel)
+            let span = MKCoordinateSpan.init(latitudeDelta: 0, longitudeDelta: zoomLevel)
             let region = MKCoordinateRegion(center: center, span: span)
 
             mapView.setRegion(region, animated: true)
@@ -63,7 +63,7 @@ class MapCell: ChatMessageCell, MKMapViewDelegate {
     func setupCell() {
         messageTextView.frame = CGRect.zero
         textBubbleView.frame = CGRect(x: 8, y: 0, width: 275, height: 198)
-        textBubbleView.borderWidth = 0.2
+        textBubbleView.layer.borderWidth = 0.2
         textBubbleView.backgroundColor = .white
     }
 

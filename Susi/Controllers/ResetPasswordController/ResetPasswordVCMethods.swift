@@ -11,7 +11,7 @@ import Material
 
 extension ResetPasswordViewController {
 
-    func dismissView() {
+    @objc func dismissView() {
         self.dismiss(animated: true, completion: nil)
     }
 
@@ -24,11 +24,17 @@ extension ResetPasswordViewController {
             navbar.barTintColor = UIColor.defaultColor()
         }
     }
+    //declare delegate
+    func addDelegates() {
+        currentPasswordField.delegate = self
+        newPasswordField.delegate = self
+        confirmPasswordField.delegate = self
+    }
 
-    func validatePassword() -> [Bool:String] {
+    func validatePassword() -> [Bool: String] {
         if let newPassword = newPasswordField.text,
             let confirmPassword = confirmPasswordField.text {
-            if newPassword.characters.count > 5 {
+            if newPassword.count > 5 {
                 if newPassword == confirmPassword {
                     return [true: ""]
                 } else {
@@ -59,7 +65,7 @@ extension ResetPasswordViewController {
             let _ = checkValidity.values.first,
             let appDelegate = UIApplication.shared.delegate as? AppDelegate,
             let user = appDelegate.currentUser,
-            isValid && isActive {
+            isValid && !isActive {
             setUIActive(active: true)
             let params = [
                 Client.UserKeys.AccessToken: user.accessToken,
@@ -68,7 +74,7 @@ extension ResetPasswordViewController {
                 Client.UserKeys.NewPassword: newPasswordField.text ?? ""
             ]
 
-            Client.sharedInstance.resetPassword(params as [String : AnyObject], { (success, message) in
+            Client.sharedInstance.resetPassword(params as [String: AnyObject], { (success, message) in
                 DispatchQueue.main.async {
                     if success {
                         self.clearField()
@@ -87,5 +93,17 @@ extension ResetPasswordViewController {
         currentPasswordField.text = ""
         confirmPasswordField.text = ""
     }
-
+    
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        switch textField {
+        case currentPasswordField:
+            newPasswordField.becomeFirstResponder()
+        case newPasswordField:
+            confirmPasswordField.becomeFirstResponder()
+        default:
+            textField.resignFirstResponder()
+        }
+        return true
+    }
+    
 }

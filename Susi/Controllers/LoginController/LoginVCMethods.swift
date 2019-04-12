@@ -12,11 +12,17 @@ import M13Checkbox
 import RealmSwift
 import SwiftValidators
 
-extension LoginViewController {
+extension LoginViewController: UITextFieldDelegate {
 
     func addTapGesture() {
         let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         view.addGestureRecognizer(tap)
+    }
+    
+    func setupView() {
+        skipButton.titleColor = .white
+        forgotPassword.titleColor = .white
+        signUpButton.titleColor = .white
     }
 
     // Configures Email Text Field
@@ -40,6 +46,37 @@ extension LoginViewController {
         passwordTextField.clearIconButton?.tintColor = .white
         passwordTextField.visibilityIconButton?.tintColor = .white
         passwordTextField.addTarget(self, action: #selector(textFieldDidChange(textField:)), for: .editingChanged)
+    }
+
+    func checkReachability() {
+        reachability.whenReachable = { reachability in
+            self.setUIBasedOnReachability(value: true)
+        }
+        reachability.whenUnreachable = { reachability in
+            self.setUIBasedOnReachability(value: false)
+        }
+    }
+
+    func setUIBasedOnReachability(value: Bool) {
+        DispatchQueue.main.async {
+            self.loginButton.isEnabled = value
+            self.forgotPassword.isEnabled = value
+            self.skipButton.isEnabled = value
+            self.forgotPassword.isEnabled = value
+            self.skipButton.isEnabled = value
+            self.signUpButton.isEnabled = value
+            if value {
+                self.alert.dismiss(animated: true, completion: nil)
+            } else {
+                self.present(self.alert, animated: true, completion: nil)
+            }
+        }
+    }
+    
+    //Declare delegates
+    func addDelegates() {
+        emailTextField.delegate = self
+        passwordTextField.delegate = self
     }
 
     @IBAction func toggleRadioButtons(_ sender: M13Checkbox) {
@@ -70,8 +107,54 @@ extension LoginViewController {
         addressTextField.textColor = .white
     }
 
+    func addForgotPasswordAction() {
+        forgotPassword.addTarget(self, action: #selector(resetPassword), for: .touchUpInside)
+    }
+
+    // Call Reset Password API
+    @objc func resetPassword() {
+        if let emailID = emailTextField.text, !emailID.isEmpty && emailID.isValidEmail() {
+
+            let params = [
+                Client.UserKeys.ForgotEmail: emailTextField.text?.lowercased()
+            ]
+
+            if personalServerButton.checkState == .unchecked {
+                UserDefaults.standard.set(Client.APIURLs.SusiAPI, forKey: ControllerConstants.UserDefaultsKeys.ipAddress)
+            } else {
+                if let ipAddress = addressTextField.text, !ipAddress.isEmpty && Validator.isIP().apply(ipAddress) || ipAddress.isValidURL() {
+                    UserDefaults.standard.set(ipAddress, forKey: ControllerConstants.UserDefaultsKeys.ipAddress)
+                } else {
+                    view.makeToast(ControllerConstants.invalidIP.localized())
+                    return
+                }
+            }
+
+            self.indicatorView.startAnimating()
+
+            Client.sharedInstance.recoverPassword(params as [String: AnyObject]) { (_, _) in
+                DispatchQueue.main.async {
+                    self.indicatorView.stopAnimating()
+
+                    self.presentMailConfirmationScreen()
+
+                    self.emailTextField.text = ""
+                    self.emailTextField.endEditing(true)
+                }
+            }
+        } else {
+            self.view.makeToast(ControllerConstants.invalidEmailAddress.localized())
+        }
+    }
+
+    func presentMailConfirmationScreen() {
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        let mailConfirmationVC = storyboard.instantiateViewController(withIdentifier: "ForgotPassowrdVC")
+        present(mailConfirmationVC, animated: true, completion: nil)
+    }
+
     // Call Login API
-    func performLogin() {
+    @objc func performLogin() {
         if isValid() {
             toggleEditing()
 
@@ -79,12 +162,12 @@ extension LoginViewController {
                 Client.UserKeys.Login: emailTextField.text!.lowercased(),
                 Client.UserKeys.Password: passwordTextField.text!,
                 Client.ChatKeys.ResponseType: Client.ChatKeys.AccessToken
-            ] as [String : Any]
+            ] as [String: Any]
 
             if personalServerButton.checkState == .unchecked {
                 UserDefaults.standard.set(Client.APIURLs.SusiAPI, forKey: ControllerConstants.UserDefaultsKeys.ipAddress)
             } else {
-                if let ipAddress = addressTextField.text, !ipAddress.isEmpty && Validator.isIP().apply(ipAddress) {
+                if let ipAddress = addressTextField.text, !ipAddress.isEmpty && Validator.isIP().apply(ipAddress) || ipAddress.isValidURL() {
                     UserDefaults.standard.set(ipAddress, forKey: ControllerConstants.UserDefaultsKeys.ipAddress)
                 } else {
                     view.makeToast(ControllerConstants.invalidIP.localized())
@@ -93,7 +176,7 @@ extension LoginViewController {
             }
 
             indicatorView.startAnimating()
-            Client.sharedInstance.loginUser(params as [String : AnyObject]) { (user, results, success, message) in
+            Client.sharedInstance.loginUser(params as [String: AnyObject]) { (user, results, success, message) in
                 DispatchQueue.main.async {
                     self.toggleEditing()
                     self.resetDB()
@@ -125,7 +208,7 @@ extension LoginViewController {
             Client.UserKeys.AccessToken: accessToken
         ]
 
-        Client.sharedInstance.fetchUserSettings(params as [String : AnyObject]) { (success, message) in
+        Client.sharedInstance.fetchUserSettings(params as [String: AnyObject]) { (success, message) in
             DispatchQueue.global().async {
                 print("User settings fetch status: \(success) : \(message)")
             }
@@ -135,16 +218,19 @@ extension LoginViewController {
 
     // Keyboard Return Key Hit
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        if textField == emailTextField {
-            _ = passwordTextField.becomeFirstResponder()
-        } else if textField == passwordTextField {
+        switch textField {
+        case emailTextField:
+            _ =  passwordTextField.becomeFirstResponder()
+        case passwordTextField:
             dismissKeyboard()
             performLogin()
+        default:
+            textField.resignFirstResponder()
         }
-        return false
+        return true
     }
 
-    func textFieldDidChange(textField: UITextField) {
+    @objc func textFieldDidChange(textField: UITextField) {
         if textField == emailTextField, let emailID = emailTextField.text {
             if !emailID.isValidEmail() {
                 emailTextField.dividerActiveColor = .red
@@ -152,7 +238,7 @@ extension LoginViewController {
                 emailTextField.dividerActiveColor = .green
             }
         } else if textField == passwordTextField, let password = passwordTextField.text {
-            if password.isEmpty || password.characters.count < 5 {
+            if password.isEmpty || password.count < 6 || password.count > 64 {
                 passwordTextField.dividerActiveColor = .red
             } else {
                 passwordTextField.dividerActiveColor = .green
@@ -161,7 +247,7 @@ extension LoginViewController {
     }
 
     // force dismiss keyboard if open.
-    func dismissKeyboard() {
+    @objc func dismissKeyboard() {
         view.endEditing(true)
     }
 
@@ -169,22 +255,13 @@ extension LoginViewController {
     func toggleEditing() {
         emailTextField.isEnabled = !emailTextField.isEnabled
         passwordTextField.isEnabled = !passwordTextField.isEnabled
-        loginButton.isEnabled = !loginButton.isEnabled
     }
 
     // Clear field after login
     func clearFields() {
-        emailTextField.text = ""
         passwordTextField.text = ""
     }
 
-    // Show sign up controller
-    func presentSignUpController() {
-        clearFields()
-
-        let vc = SignUpViewController()
-        present(vc, animated: true, completion: nil)
-    }
 
     // Validate fields
     func isValid() -> Bool {
@@ -217,7 +294,7 @@ extension LoginViewController {
     // Check existing session
     func checkSession() {
         if let userDefaultValue = UserDefaults.standard.value(forKey: ControllerConstants.UserDefaultsKeys.user) {
-            if let userData = userDefaultValue as? [String : AnyObject] {
+            if let userData = userDefaultValue as? [String: AnyObject] {
                 let user = User(dictionary: userData)
                 saveUserGlobally(user: user)
 
@@ -233,7 +310,7 @@ extension LoginViewController {
         }
     }
 
-    func enterAnonymousMode() {
+    @objc func enterAnonymousMode() {
         resetDB()
         deleteVoiceModel()
         resetSettings()

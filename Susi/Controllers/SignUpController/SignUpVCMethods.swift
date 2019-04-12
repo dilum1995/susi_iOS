@@ -13,13 +13,14 @@ import SwiftValidators
 extension SignUpViewController {
 
     func addTapGesture() {
-        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(LoginViewController.dismissKeyboard))
+        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         view.addGestureRecognizer(tap)
     }
 
     func prepareFields() {
         emailTextField.placeholderNormalColor = .white
         emailTextField.placeholderActiveColor = .white
+        emailTextField.text = UserDefaults.standard.value(forKey: ControllerConstants.UserDefaultsKeys.typedEmailAdress) as? String ?? ""
         emailTextField.dividerNormalColor = .white
         emailTextField.dividerActiveColor = .white
         emailTextField.textColor = .white
@@ -52,6 +53,13 @@ extension SignUpViewController {
     func prepareSignUpButton() {
         signUpButton.addTarget(self, action: #selector(performSignUp), for: .touchUpInside)
     }
+    
+    //declare delegate
+    func addDelegates() {
+        emailTextField.delegate = self
+        passwordTextField.delegate = self
+        confirmPasswordTextField.delegate = self
+    }
 
     // Dismiss View Controller
     @IBAction func dismissView() {
@@ -70,7 +78,8 @@ extension SignUpViewController {
     }
 
     // Sign Up User
-    func performSignUp() {
+    @objc func performSignUp() {
+
         if isValid() {
 
             toggleEditing()
@@ -78,7 +87,7 @@ extension SignUpViewController {
 
             let params = [
                 Client.UserKeys.SignUp: emailTextField.text!.lowercased(),
-                Client.UserKeys.Password: emailTextField.text!
+                Client.UserKeys.Password: passwordTextField.text!
             ]
 
             if personalServerButton.checkState == .unchecked {
@@ -92,12 +101,15 @@ extension SignUpViewController {
                 }
             }
 
-            Client.sharedInstance.registerUser(params as [String : AnyObject]) { (success, message) in
+            Client.sharedInstance.registerUser(params as [String: AnyObject]) { (success, message) in
                 DispatchQueue.main.async {
                     self.activityIndicator.stopAnimating()
                     self.toggleEditing()
                     if success {
-                        self.dismissView()
+                        self.view.makeToast(ControllerConstants.SignUp.successSignup)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
+                            self.dismissView()
+                        })
                     }
                     self.view.makeToast(message)
                 }
@@ -114,14 +126,21 @@ extension SignUpViewController {
 
     // function called on return button click of keyboard
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        dismissKeyboard()
-        if textField == confirmPasswordTextField {
+        switch textField {
+        case emailTextField:
+            _ = passwordTextField.becomeFirstResponder()
+        case passwordTextField:
+            _ = confirmPasswordTextField.becomeFirstResponder()
+        case confirmPasswordTextField:
+            dismissKeyboard()
             performSignUp()
+        default:
+            textField.resignFirstResponder()
         }
-        return false
+        return true
     }
 
-    func textFieldDidChange(textField: UITextField) {
+    @objc func textFieldDidChange(textField: UITextField) {
         if textField == emailTextField, let emailID = emailTextField.text {
             if !emailID.isValidEmail() {
                 emailTextField.dividerActiveColor = .red
@@ -129,7 +148,7 @@ extension SignUpViewController {
                 emailTextField.dividerActiveColor = .green
             }
         } else if textField == passwordTextField, let password = passwordTextField.text {
-            if password.isEmpty || password.characters.count < 5 {
+            if password.isEmpty || password.count < 6 || password.count > 64 {
                 passwordTextField.dividerActiveColor = .red
             } else {
                 passwordTextField.dividerActiveColor = .green
@@ -144,7 +163,7 @@ extension SignUpViewController {
     }
 
     // dismiss keyboard if open.
-    func dismissKeyboard() {
+    @objc func dismissKeyboard() {
         // Causes the view (or one of its embedded text fields) to resign the first responder status.
         view.endEditing(true)
     }
@@ -174,6 +193,30 @@ extension SignUpViewController {
             }
         }
         return true
+    }
+
+    // Check if email is already registered or not
+    func checkIfEmailAlreadyExists() {
+        let emailCheckParam = [
+            Client.UserKeys.CheckEmail: emailTextField.text!.lowercased() as AnyObject
+        ]
+        Client.sharedInstance.checkRegistration(emailCheckParam) { (exists, success) in
+            DispatchQueue.main.async {
+                if success, exists! {
+                    self.view.makeToast(ControllerConstants.emailAlreadyExists)
+                }
+            }
+        }
+    }
+
+}
+
+extension SignUpViewController: UITextFieldDelegate {
+
+    func textFieldDidEndEditing(_ textField: UITextField, reason: UITextField.DidEndEditingReason) {
+        if textField.accessibilityIdentifier == "email" {
+            checkIfEmailAlreadyExists()
+        }
     }
 
 }

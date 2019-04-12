@@ -22,7 +22,7 @@ extension UIColor {
             cString.remove(at: cString.startIndex)
         }
 
-        if cString.characters.count != 6 {
+        if cString.count != 6 {
             return UIColor.gray
         }
 
@@ -43,7 +43,7 @@ extension String {
 
     func isValidEmail() -> Bool {
         let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,20}"
-        let emailTest  = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
+        let emailTest  = NSPredicate(format: "SELF MATCHES %@", emailRegEx)
         return emailTest.evaluate(with: self)
     }
 
@@ -71,6 +71,13 @@ extension String {
         return URL(string: self) != nil
     }
 
+    func isValidURL() -> Bool {
+        if let url = URL(string: self) {
+            return UIApplication.shared.canOpenURL(url)
+        }
+        return false
+    }
+
     func containsURL() -> Bool {
         var isValid = false
 
@@ -80,7 +87,7 @@ extension String {
 
             let urlRegEx = head+"+(.)+"+tail
 
-            let urlTest = NSPredicate(format:"SELF MATCHES %@", urlRegEx)
+            let urlTest = NSPredicate(format: "SELF MATCHES %@", urlRegEx)
             isValid = urlTest.evaluate(with: self.trimmed)
         }
         return isValid
@@ -89,7 +96,7 @@ extension String {
     func extractFirstURL() -> String {
         if self.containsURL() {
             let detector = try! NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-            let matches = detector.matches(in: self, options: [], range: NSMakeRange(0, self.characters.count))
+            let matches = detector.matches(in: self, options: [], range: NSRange(location: 0, length: self.count))
 
             for match in matches {
                 let url = (self as NSString).substring(with: match.range)
@@ -101,7 +108,11 @@ extension String {
 
     var html2AttributedString: NSAttributedString? {
         do {
-            return try NSAttributedString(data: Data(utf8), options: [NSDocumentTypeDocumentAttribute: NSHTMLTextDocumentType, NSCharacterEncodingDocumentAttribute: String.Encoding.utf8.rawValue], documentAttributes: nil)
+            let docType = NSAttributedString.DocumentType.html
+            let charEncoding = String.Encoding.utf8.rawValue
+            return try NSAttributedString(data: Data(utf8),
+                                          options: [NSAttributedString.DocumentReadingOptionKey.documentType: docType, NSAttributedString.DocumentReadingOptionKey.characterEncoding: charEncoding],
+                                          documentAttributes: nil)
         } catch {
             print("error:", error)
             return nil
@@ -116,15 +127,15 @@ extension String {
     var isTextSufficientComplexity: Bool {
 
         let capitalLetterRegEx  = ".*[A-Z]+.*"
-        var texttest = NSPredicate(format:"SELF MATCHES %@", capitalLetterRegEx)
+        var texttest = NSPredicate(format: "SELF MATCHES %@", capitalLetterRegEx)
         let capitalResult = texttest.evaluate(with: self)
 
         let numberRegEx  = ".*[0-9]+.*"
-        let texttest1 = NSPredicate(format:"SELF MATCHES %@", numberRegEx)
+        let texttest1 = NSPredicate(format: "SELF MATCHES %@", numberRegEx)
         let numberResult = texttest1.evaluate(with: self)
 
         let lowercaseLetterRegEx  = ".*[a-z]+.*"
-        texttest = NSPredicate(format:"SELF MATCHES %@", lowercaseLetterRegEx)
+        texttest = NSPredicate(format: "SELF MATCHES %@", lowercaseLetterRegEx)
         let lowercaseResult = texttest.evaluate(with: self)
 
         return capitalResult && numberResult && lowercaseResult
@@ -142,6 +153,14 @@ extension String {
         }
     }
 
+    func getFirstTwoChar() -> String {
+        return String(self.prefix(2))
+    }
+
+    func getFirstChar(_ char: Int) -> String {
+        return String(self.prefix(char))
+    }
+
 }
 
 extension UIView {
@@ -155,7 +174,7 @@ extension UIView {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
 
-        addConstraints(NSLayoutConstraint.constraints(withVisualFormat: format, options: NSLayoutFormatOptions(), metrics: nil, views: viewsDictionary))
+        addConstraints(NSLayoutConstraint.constraints(withVisualFormat: format, options: NSLayoutConstraint.FormatOptions(), metrics: nil, views: viewsDictionary))
     }
 
     // Define UI margin constants
@@ -194,8 +213,8 @@ extension NSMutableAttributedString {
 
         let foundRange = self.mutableString.range(of: textToFind)
         if foundRange.location != NSNotFound {
-            self.addAttribute(NSLinkAttributeName, value: linkURL, range: foundRange)
-            self.addAttributes([NSFontAttributeName: UIFont.systemFont(ofSize: 16.0)], range: self.mutableString.range(of: text))
+            self.addAttribute(NSAttributedString.Key.link, value: linkURL, range: foundRange)
+            self.addAttributes([NSAttributedString.Key.font: UIFont.systemFont(ofSize: 16.0)], range: self.mutableString.range(of: text))
             return true
         }
         return false
@@ -207,4 +226,46 @@ extension UIApplication {
     var statusBarView: UIView? {
         return value(forKey: "statusBar") as? UIView
     }
+}
+
+extension UILabel {
+
+    func heightForLabel(text: String, font: UIFont, width: CGFloat) -> CGFloat {
+        let label: UILabel = UILabel(frame: CGRect(x: 0, y: 0, width: width, height: CGFloat.greatestFiniteMagnitude))
+        label.numberOfLines = 0
+        label.lineBreakMode = NSLineBreakMode.byWordWrapping
+        label.font = font
+        label.text = text
+
+        label.sizeToFit()
+        return label.frame.height
+    }
+
+}
+
+extension UIButton {
+
+    func centerTextAndImage(spacing: CGFloat) {
+        let insetAmount = spacing / 2
+        imageEdgeInsets = UIEdgeInsets(top: 10, left: -insetAmount, bottom: 10, right: insetAmount)
+        titleEdgeInsets = UIEdgeInsets(top: 0, left: insetAmount, bottom: 0, right: -insetAmount)
+        contentEdgeInsets = UIEdgeInsets(top: 0, left: insetAmount, bottom: 0, right: insetAmount)
+    }
+
+}
+
+extension Int {
+
+    func percentage(outOf totalNumber: Int) -> Double {
+        return ((Double(self)/Double(totalNumber)) * 100).truncate(places: 1)
+    }
+
+}
+
+extension Double {
+
+    func truncate(places: Int) -> Double {
+        return Double(floor(pow(10.0, Double(places)) * self)/pow(10.0, Double(places)))
+    }
+
 }

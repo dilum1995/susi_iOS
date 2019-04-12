@@ -38,6 +38,13 @@ extension ChatViewController: SFSpeechRecognizerDelegate, AVSpeechSynthesizerDel
 
             OperationQueue.main.addOperation {
                 // enable or disable mic button
+                if !isEnabled {
+                    self.stopSpeechToText()
+                    self.sendButton.setImage(ControllerConstants.Images.send, for: .normal)
+                    self.sendButton.tintColor = .white
+                    self.sendButton.backgroundColor = UIColor.defaultColor()
+                }
+                UserDefaults.standard.set(isEnabled, forKey: ControllerConstants.UserDefaultsKeys.speechToTextAvailable)
                 print("Speech status: \(isEnabled)")
 
             }
@@ -58,18 +65,17 @@ extension ChatViewController: SFSpeechRecognizerDelegate, AVSpeechSynthesizerDel
         isSpeechRecognitionRunning = true
 
         do {
-            try audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, with: AVAudioSessionCategoryOptions.defaultToSpeaker)
-            try audioSession.setMode(AVAudioSessionModeDefault)
-            try audioSession.setActive(true, with: .notifyOthersOnDeactivation)
+            try audioSession.setCategory(AVAudioSession.Category.playAndRecord,
+                                         mode: AVAudioSession.Mode.default,
+                                         options: AVAudioSession.CategoryOptions.defaultToSpeaker)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             print("audioSession properties weren't set because of an error.")
         }
 
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
 
-        guard let inputNode = audioEngine.inputNode else {
-            fatalError("Audio engine has no input node")
-        }
+        let inputNode = audioEngine.inputNode
 
         guard let recognitionRequest = recognitionRequest else {
             fatalError("Unable to create an SFSpeechAudioBufferRecognitionRequest object")
@@ -137,7 +143,7 @@ extension ChatViewController: SFSpeechRecognizerDelegate, AVSpeechSynthesizerDel
     }
 
     func resetSpeechConfig() {
-        audioEngine.inputNode?.removeTap(onBus: 0)
+        audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
     }
 
@@ -167,8 +173,12 @@ extension ChatViewController: SFSpeechRecognizerDelegate, AVSpeechSynthesizerDel
             let speechUtterance = AVSpeechUtterance(string: message.message)
             speechSynthesizer.delegate = self
 
-            if let language = message.answerData?.language {
-                speechUtterance.voice = AVSpeechSynthesisVoice(language: language)
+            if let selectedLanguage = UserDefaults.standard.object(forKey: ControllerConstants.UserDefaultsKeys.languageCode) as? String {
+                speechUtterance.voice = AVSpeechSynthesisVoice(language: selectedLanguage)
+            } else {
+                if let language = message.answerData?.language {
+                    speechUtterance.voice = AVSpeechSynthesisVoice(language: language)
+                }
             }
 
             speechUtterance.rate = UserDefaults.standard.float(forKey: ControllerConstants.UserDefaultsKeys.speechRate)
@@ -178,6 +188,10 @@ extension ChatViewController: SFSpeechRecognizerDelegate, AVSpeechSynthesizerDel
         } else {
             stopSpeechToText()
         }
+    }
+
+    func stopSpeakAction() {
+        speechSynthesizer.stopSpeaking(at: AVSpeechBoundary.immediate)
     }
 
     func checkAndRunHotwordRecognition() {

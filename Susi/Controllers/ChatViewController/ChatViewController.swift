@@ -14,26 +14,32 @@ import RealmSwift
 import Speech
 import NVActivityIndicatorView
 import Realm
+import Reachability
+import BouncyLayout
 
 class ChatViewController: UICollectionViewController {
-
+    
+    init(collectionViewLayout layout: UICollectionViewLayout = BouncyLayout(), shouldOpenSkillListing: Bool = false) {
+        super.init(collectionViewLayout: layout)
+        self.shouldOpenSkillListing = shouldOpenSkillListing
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
     // MARK: - Variable Declarations
-
+    let reachability = Reachability()!
+    var shouldOpenSkillListing: Bool = false
     lazy var susiSkillListingButton: IconButton = {
         let ib = IconButton()
         ib.image = ControllerConstants.Images.susiSymbol
-        ib.cornerRadius = 18.0
+        ib.layer.cornerRadius = 18.0
         ib.addTarget(self, action: #selector(presentSkillListingController), for: .touchUpInside)
         ib.backgroundColor = UIColor.defaultColor()
         return ib
     }()
 
-    // youtube player
-    lazy var youtubePlayer: YouTubePlayerView = {
-        let frame = CGRect(x: 0, y: 0, width: self.view.frame.width - 16, height: self.view.frame.height * 1 / 3)
-        let player = YouTubePlayerView(frame: frame)
-        return player
-    }()
+    let alert = UIAlertController(title: "Warning", message: "Please Connect to Internet", preferredStyle: .alert)
 
     // scroll down button
     lazy var scrollButton: UIButton = {
@@ -41,7 +47,7 @@ class ChatViewController: UICollectionViewController {
         button.setImage(ControllerConstants.Images.scrollDown, for: .normal)
         button.backgroundColor = .white
         button.addTarget(self, action: #selector(scrollToLast), for: .touchUpInside)
-        button.cornerRadius = 8
+        button.layer.cornerRadius = 8
         return button
     }()
 
@@ -53,13 +59,13 @@ class ChatViewController: UICollectionViewController {
     }()
 
     // chat input field
-    lazy var inputTextField: UITextField = {
-        let textField = UITextField()
-        textField.placeholder = ControllerConstants.askSusi.localized()
+    lazy var inputTextField: UITextView = {
+        let textField = UITextView()
+        textField.text = ControllerConstants.askSusi.localized()
+        textField.textColor = UIColor.lightGray
         textField.delegate = self
         textField.accessibilityIdentifier = ControllerConstants.TestKeys.chatInputView
         textField.font = UIFont.systemFont(ofSize: 16)
-        textField.addTarget(self, action: #selector(textFieldDidChange(_:)), for: .editingChanged)
         return textField
     }()
 
@@ -69,25 +75,31 @@ class ChatViewController: UICollectionViewController {
     // send button
     lazy var sendButton: FABButton = {
         let button = FABButton()
-        button.setImage(ControllerConstants.Images.microphone, for: .normal)
-        button.addTarget(self, action: #selector(setTargetForSendButton), for: .touchUpInside)
-        button.accessibilityIdentifier = ControllerConstants.TestKeys.send
-        button.tintColor = UIColor.defaultColor()
-        button.backgroundColor = .clear
+        isSpeechToTextAvailable = UserDefaults.standard.bool(forKey: ControllerConstants.UserDefaultsKeys.speechToTextAvailable)
+        if let _ = speechRecognizer?.isAvailable, isSpeechToTextAvailable {
+            button.setImage(ControllerConstants.Images.microphone, for: .normal)
+            button.addTarget(self, action: #selector(setTargetForSendButton), for: .touchUpInside)
+            button.accessibilityIdentifier = ControllerConstants.TestKeys.send
+            button.tintColor = UIColor.defaultColor()
+            button.backgroundColor = .clear
+        } else {
+            button.setImage(ControllerConstants.Images.send, for: .normal)
+            button.addTarget(self, action: #selector(setTargetForSendButton), for: .touchUpInside)
+            button.accessibilityIdentifier = ControllerConstants.TestKeys.send
+            button.tintColor = .white
+            button.backgroundColor = UIColor.defaultColor()
+        }
         return button
     }()
 
     // contains all the message
-    var messages = List<Message>()
+    var messages = [Message]()
 
     // realm instance
     let realm = try! Realm()
 
     // used to send user's location to the server
     var locationManager = CLLocationManager()
-
-    // used as an overlay to dismiss the youtube player
-    let blackView = UIView()
 
     // snowboy resource
     let RESOURCE = Bundle.main.path(forResource: "common", ofType: "res")
@@ -96,7 +108,10 @@ class ChatViewController: UICollectionViewController {
     var MODEL: String = Bundle.main.path(forResource: "susi", ofType: "pmdl")!
 
     // snowboy wrapper
-    var wrapper: SnowboyWrapper! = nil
+    lazy var wrapper: SnowboyWrapper? = {
+       var wrapper = SnowboyWrapper(resources: RESOURCE, modelStr: MODEL)
+       return wrapper
+    }()
 
     // records audio
     var audioRecorder: AVAudioRecorder!
@@ -112,6 +127,7 @@ class ChatViewController: UICollectionViewController {
 
     // flag to check if STT running
     var isSpeechRecognitionRunning: Bool = false
+    var isSpeechToTextAvailable: Bool = false
 
     let audioSession = AVAudioSession.sharedInstance()
     let speechSynthesizer = AVSpeechSynthesizer()
@@ -146,6 +162,7 @@ class ChatViewController: UICollectionViewController {
         loadMessages()
         addSkillListingButton()
         addScrollButton()
+        checkReachability()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -157,10 +174,32 @@ class ChatViewController: UICollectionViewController {
         checkAndRunHotwordRecognition()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        shouldOpenSkillListingVC()
+        NotificationCenter.default.addObserver(self, selector: #selector(internetConnection), name: Notification.Name.reachabilityChanged, object: reachability)
+
+        do {
+            try reachability.startNotifier()
+        } catch {
+            print(error)
+        }
+    }
+
+    @objc func internetConnection(notification: NSNotification) {
+        guard let reachability = notification.object as? Reachability else { return }
+        if reachability.connection != .none {
+            print("internet is available")
+        } else {
+            print("internet is not available")
+        }
+    }
+
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         stopHotwordRecognition()
         stopSpeechToText()
+        NotificationCenter.default.removeObserver(self)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -173,4 +212,5 @@ class ChatViewController: UICollectionViewController {
         print("memory issue")
         initSnowboy()
     }
+
 }
